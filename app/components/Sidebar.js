@@ -42,6 +42,7 @@ const CATEGORY_ICONS = {
   "Customize Gleamwave Basket": faGift,
   "Resin Rings": faRing,
   "Resin Jhumkas": faGem,
+  "Resin Earings": faGem,
   "Resin Trays": faPalette,
   "Resin Bracelets": faGem,
   "Resin Pendants": faHeart,
