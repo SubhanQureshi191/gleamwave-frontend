@@ -19,6 +19,7 @@ import {
   faBox,
   faCircleCheck,
   faShoppingBag,
+  faCircleDot,
 } from "@fortawesome/free-solid-svg-icons";
 
 // ── BRAND TOKENS ──
@@ -43,11 +44,13 @@ const CATEGORY_ICONS = {
   "Resin Rings": faRing,
   "Resin Jhumkas": faGem,
   "Resin Earings": faGem,
+  "Resin Bangals": faCircleCheck,
   "Resin Trays": faPalette,
   "Resin Bracelets": faGem,
   "Resin Pendants": faHeart,
   "Resin Studs": faStar,
   "Resin MDFs": faBox,
+  "Florets": faHeart,
   "Trending Gajra": faHeart,
   "Customized Certificates": faCircleCheck,
   Booklet: faBook,
