@@ -8,6 +8,7 @@ import {
   faChevronUp,
   faInfoCircle,
 } from "@fortawesome/free-solid-svg-icons";
+import { API_URL } from "@/lib/config";
 
 // ── Components ──
 import Navbar from "../../components/Navbar";
@@ -32,8 +33,6 @@ const C = {
   textMid: "#6B4F3A",
   textLight: "#A08070",
 };
-
-const API_URL = "http://localhost:5000/api";
 
 // ─── PRICE COMPONENT ──────────────────────────────────────────
 const PriceDisplay = ({ product, size = "large" }) => {
