@@ -115,9 +115,23 @@ export default function Checkout() {
             const res = await fetch(`${API_URL}/products/${item.product_id}`);
             if (!res.ok) return null;
             const product = await res.json();
+
+            let colorName = null;
+            if (item.variant_id && product.variants) {
+              const variant = product.variants.find((v) => v.id === item.variant_id);
+              if (variant) {
+                colorName = variant.color_name;
+                if (variant.image_url) {
+                  product.images = [{ image_url: variant.image_url, position: 0 }];
+                }
+              }
+            }
+
             return {
-              id: item.product_id,
+              id: `${item.product_id}-${item.variant_id || "none"}`,
               product_id: item.product_id,
+              variant_id: item.variant_id || null,
+              color_name: colorName,
               quantity: item.quantity,
               product: product,
             };
@@ -220,6 +234,7 @@ export default function Checkout() {
           guest_email: formData.email,
           items: cartItems.map(item => ({
             product_id: item.product_id,
+            variant_id: item.variant_id || null,
             quantity: item.quantity,
           })),
         };
@@ -801,6 +816,7 @@ export default function Checkout() {
                       {item.product?.name || "Product"}
                     </div>
                     <div style={{ fontSize: 12, color: C.textLight }}>
+                      {item.color_name && <span style={{ color: C.maroonDark, fontWeight: 600 }}>{item.color_name} · </span>}
                       Qty: {item.quantity}
                     </div>
                   </div>

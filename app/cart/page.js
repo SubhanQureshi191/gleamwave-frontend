@@ -147,9 +147,27 @@ export default function Cart() {
             const res = await fetch(`${API_URL}/products/${item.product_id}`);
             if (!res.ok) return null;
             const product = await res.json();
+
+            // ─── Resolve the chosen color (if any) to its own image & stock ───
+            let colorName = null;
+            let variantStock = null;
+            if (item.variant_id && product.variants) {
+              const variant = product.variants.find((v) => v.id === item.variant_id);
+              if (variant) {
+                colorName = variant.color_name;
+                variantStock = variant.stock;
+                if (variant.image_url) {
+                  product.images = [{ image_url: variant.image_url, position: 0 }];
+                }
+              }
+            }
+
             return {
-              id: item.product_id, // Use product_id as cart item id
+              id: `${item.product_id}-${item.variant_id || "none"}`, // unique per product+color
               product_id: item.product_id,
+              variant_id: item.variant_id || null,
+              color_name: colorName,
+              variant_stock: variantStock,
               quantity: item.quantity,
               product: product,
             };
@@ -199,10 +217,14 @@ export default function Cart() {
         if (!res.ok) throw new Error(data.error || "Failed to update");
         await fetchServerCart();
       } else {
-        // Guest user - update localStorage
+        // Guest user - update localStorage (match by product AND chosen color)
+        const [prodIdStr, variantIdStr] = String(itemId).split("-");
+        const prodId = parseInt(prodIdStr);
+        const variantId = variantIdStr === "none" ? null : parseInt(variantIdStr);
+
         const localCart = JSON.parse(localStorage.getItem("guest_cart") || "[]");
-        const updated = localCart.map(item => 
-          item.product_id === itemId 
+        const updated = localCart.map(item =>
+          item.product_id === prodId && (item.variant_id || null) === variantId
             ? { ...item, quantity: newQuantity }
             : item
         );
@@ -233,9 +255,15 @@ export default function Cart() {
         if (!res.ok) throw new Error("Failed to remove item");
         await fetchServerCart();
       } else {
-        // Guest user - remove from localStorage
+        // Guest user - remove from localStorage (match by product AND chosen color)
+        const [prodIdStr, variantIdStr] = String(itemId).split("-");
+        const prodId = parseInt(prodIdStr);
+        const variantId = variantIdStr === "none" ? null : parseInt(variantIdStr);
+
         const localCart = JSON.parse(localStorage.getItem("guest_cart") || "[]");
-        const updated = localCart.filter(item => item.product_id !== itemId);
+        const updated = localCart.filter(
+          item => !(item.product_id === prodId && (item.variant_id || null) === variantId)
+        );
         localStorage.setItem("guest_cart", JSON.stringify(updated));
         await fetchLocalCart();
       }
@@ -407,7 +435,10 @@ export default function Cart() {
               {cartItems.map((item) => {
                 const isExpanded = expandedDescriptions[item.id];
                 const description = item.product?.description || "No description available for this product.";
-                const isOutOfStock = item.product?.stock <= 0;
+                const effectiveStock = item.variant_stock !== undefined && item.variant_stock !== null
+                  ? item.variant_stock
+                  : item.product?.stock;
+                const isOutOfStock = effectiveStock <= 0;
                 
                 return (
                   <div key={item.id} style={{ padding: "20px 0", borderBottom: `1px solid ${C.goldPale}` }}>
@@ -439,6 +470,11 @@ export default function Cart() {
                         <div style={{ fontSize: 13, color: C.textLight, marginTop: 4 }}>
                           {item.product?.category || "Category"}
                         </div>
+                        {item.color_name && (
+                          <div style={{ fontSize: 13, color: C.maroonDark, fontWeight: 600, marginTop: 4 }}>
+                            Color: {item.color_name}
+                          </div>
+                        )}
                         
                         <div style={{ marginTop: 6 }}>
                           <PriceDisplay product={item.product} size="small" />
@@ -503,7 +539,7 @@ export default function Cart() {
                         </span>
                         <button
                           onClick={() => {
-                            if (item.product?.stock > item.quantity) {
+                            if (effectiveStock > item.quantity) {
                               updateQuantity(item.id, item.quantity + 1);
                             } else {
                               showToast("Maximum stock available", "error");

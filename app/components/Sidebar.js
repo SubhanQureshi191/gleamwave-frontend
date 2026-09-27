@@ -8,6 +8,8 @@ import {
   faTimes,
   faChevronDown,
   faChevronUp,
+  faHouse,
+  faEnvelope,
   faGift,
   faBook,
   faRing,
@@ -90,6 +92,13 @@ const buildCategories = (products) => {
   categories.sort((a, b) => a.label.localeCompare(b.label));
   return categories;
 };
+
+// ─── QUICK NAV LINKS (Home / Shop / Contact) ───
+const QUICK_NAV_LINKS = [
+  { label: "Home", href: "/", icon: faHouse },
+  { label: "Shop All Products", href: "/products", icon: faShoppingBag },
+  { label: "Contact", href: "/contact", icon: faEnvelope },
+];
 
 export default function Sidebar({
   isOpen,
@@ -242,10 +251,11 @@ export default function Sidebar({
     setExpandedCategories({});
   };
 
-  const handleShopAll = () => {
+  // ─── GENERIC NAV LINK CLICK (Home / Shop / Contact) ───
+  const handleNavigate = (href) => {
     onClose();
     setExpandedCategories({});
-    router.push("/products");
+    router.push(href);
   };
 
   const handleLogout = () => {
@@ -391,40 +401,43 @@ export default function Sidebar({
 
         {/* ─── CONTENT ─── */}
         <div style={{ padding: "12px 0", flex: 1 }}>
-          {/* ⭐ SHOP ALL LINK */}
-          <div
-            onClick={handleShopAll}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 12,
-              padding: "14px 24px",
-              cursor: "pointer",
-              borderBottom: `1px solid ${C.goldPale}`,
-              transition: "background 0.2s",
-            }}
-            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = C.goldPale)}
-            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
-          >
-            <FontAwesomeIcon
-              icon={faShoppingBag}
-              style={{ color: C.gold, width: 16 }}
-            />
-            <span
+          {/* ⭐ QUICK NAV LINKS: Home / Shop All Products / Contact */}
+          {QUICK_NAV_LINKS.map((link) => (
+            <div
+              key={link.href}
+              onClick={() => handleNavigate(link.href)}
               style={{
-                fontSize: 14,
-                fontWeight: 700,
-                color: C.maroonDark,
-                letterSpacing: "0.03em",
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
+                padding: "14px 24px",
+                cursor: "pointer",
+                borderBottom: `1px solid ${C.goldPale}`,
+                transition: "background 0.2s",
               }}
+              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = C.goldPale)}
+              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
             >
-              Shop All Products
-            </span>
-            <FontAwesomeIcon
-              icon={faArrowRight}
-              style={{ marginLeft: "auto", color: C.gold, fontSize: 12 }}
-            />
-          </div>
+              <FontAwesomeIcon
+                icon={link.icon}
+                style={{ color: C.gold, width: 16 }}
+              />
+              <span
+                style={{
+                  fontSize: 14,
+                  fontWeight: 700,
+                  color: C.maroonDark,
+                  letterSpacing: "0.03em",
+                }}
+              >
+                {link.label}
+              </span>
+              <FontAwesomeIcon
+                icon={faArrowRight}
+                style={{ marginLeft: "auto", color: C.gold, fontSize: 12 }}
+              />
+            </div>
+          ))}
 
           {/* Section Label */}
           <div

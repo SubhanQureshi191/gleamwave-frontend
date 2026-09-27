@@ -78,6 +78,7 @@ export default function ProductDetail() {
   const [error, setError] = useState(null);
   const [toast, setToast] = useState(null);
   const [selectedImage, setSelectedImage] = useState(0);
+  const [selectedVariant, setSelectedVariant] = useState(null); // ← NEW: chosen color
   const [quantity, setQuantity] = useState(1);
   const [cart, setCart] = useState([]);
   const [descriptionExpanded, setDescriptionExpanded] = useState(false);
@@ -127,6 +128,12 @@ export default function ProductDetail() {
       if (!res.ok) throw new Error("Product not found");
       const data = await res.json();
       setProduct(data);
+
+      // ─── If this product has colors, pre-select the first one ───
+      if (data.variants && data.variants.length > 0) {
+        setSelectedVariant(data.variants[0]);
+        setQuantity(1);
+      }
     } catch (err) {
       setError(err.message);
     } finally {
@@ -138,26 +145,41 @@ export default function ProductDetail() {
     setDescriptionExpanded(!descriptionExpanded);
   };
 
-  // ─── ADD TO CART (Supports Guest) ────────────────────────────
+  // ─── SELECT A COLOR ───
+  const handleSelectVariant = (variant) => {
+    setSelectedVariant(variant);
+    setQuantity(1); // reset quantity so it never exceeds the new color's stock
+  };
+
+  // ─── ADD TO CART (Supports Guest + Color Variant) ────────────────────────────
   const addToCart = async () => {
     try {
       const token = localStorage.getItem("token");
+      const variantId = selectedVariant ? selectedVariant.id : null;
 
       if (!token) {
         const guestCart = JSON.parse(localStorage.getItem("guest_cart") || "[]");
-        
-        const existingIndex = guestCart.findIndex(item => item.product_id === parseInt(productId));
-        
+
+        const existingIndex = guestCart.findIndex(
+          (item) =>
+            item.product_id === parseInt(productId) &&
+            (item.variant_id || null) === (variantId || null)
+        );
+
         if (existingIndex >= 0) {
           guestCart[existingIndex].quantity += quantity;
         } else {
-          guestCart.push({ product_id: parseInt(productId), quantity: quantity });
+          guestCart.push({
+            product_id: parseInt(productId),
+            variant_id: variantId,
+            quantity: quantity,
+          });
         }
-        
+
         localStorage.setItem("guest_cart", JSON.stringify(guestCart));
         window.dispatchEvent(new Event("cartUpdated"));
         setCart(guestCart);
-        
+
         setToast(`"${product.name}" added to cart`);
         setTimeout(() => setToast(null), 3000);
         return;
@@ -171,6 +193,7 @@ export default function ProductDetail() {
         },
         body: JSON.stringify({
           product_id: parseInt(productId),
+          variant_id: variantId,
           quantity: quantity,
         }),
       });
@@ -254,7 +277,16 @@ export default function ProductDetail() {
     );
   }
 
-  const isOutOfStock = product.stock <= 0;
+  const hasVariants = product.variants && product.variants.length > 0;
+
+  // ─── Stock & image resolve to the selected color when this product has colors ───
+  const effectiveStock = hasVariants ? (selectedVariant?.stock ?? 0) : product.stock;
+  const isOutOfStock = effectiveStock <= 0;
+
+  const displayImage = selectedVariant?.image_url
+    ? selectedVariant.image_url
+    : product.images?.[selectedImage]?.image_url || product.images?.[0]?.image_url;
+
   const cartCount = cart.reduce((sum, item) => sum + (item.quantity || 1), 0);
 
   return (
@@ -382,16 +414,16 @@ export default function ProductDetail() {
           {/* ─── LEFT: IMAGES ─── */}
           <div>
             <div style={{
-              width: "100%", height: 450, borderRadius: 20,
+              width: "100%", aspectRatio: "1 / 1", borderRadius: 20,
               overflow: "hidden", backgroundColor: C.whiteOff,
               border: `2px solid ${C.goldPale}`,
               display: "flex", alignItems: "center", justifyContent: "center",
               position: "relative",
               boxShadow: "0 2px 16px rgba(74,46,34,0.06)",
             }}>
-              {product.images && product.images.length > 0 ? (
+              {displayImage ? (
                 <img
-                  src={product.images[selectedImage]?.image_url || product.images[0]?.image_url}
+                  src={displayImage}
                   alt={product.name}
                   style={{
                     width: "100%", height: "100%",
@@ -451,7 +483,8 @@ export default function ProductDetail() {
               )}
             </div>
 
-            {product.images && product.images.length > 1 && (
+            {/* ─── General image thumbnails (only shown when this product has NO colors) ─── */}
+            {!hasVariants && product.images && product.images.length > 1 && (
               <div style={{
                 display: "flex", gap: 12, marginTop: 16,
                 overflowX: "auto", paddingBottom: 8,
@@ -466,14 +499,6 @@ export default function ProductDetail() {
                       border: selectedImage === index ? `3px solid ${C.maroon}` : `2px solid ${C.goldPale}`,
                       cursor: "pointer", flexShrink: 0,
                       transition: "all 0.2s",
-                    }}
-                    onMouseEnter={(e) => {
-                      if (selectedImage !== index) {
-                        e.currentTarget.style.transform = "scale(1.05)";
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.transform = "scale(1)";
                     }}
                   >
                     <img
@@ -519,9 +544,67 @@ export default function ProductDetail() {
                 color: isOutOfStock ? "#EF4444" : C.textMid,
                 fontWeight: isOutOfStock ? 600 : 400,
               }}>
-                {isOutOfStock ? "Out of Stock" : `In Stock (${product.stock} available)`}
+                {isOutOfStock ? "Out of Stock" : `In Stock (${effectiveStock} available)`}
               </span>
             </div>
+
+            {/* ─── COLOR SELECTOR (only if this product has colors) ─── */}
+            {hasVariants && (
+              <div style={{ marginBottom: 24 }}>
+                <div style={{ fontSize: 14, fontWeight: 500, color: C.textMid, marginBottom: 10 }}>
+                  Color: <span style={{ color: C.maroonDark, fontWeight: 700 }}>{selectedVariant?.color_name}</span>
+                </div>
+                <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                  {product.variants.map((variant) => {
+                    const isSelected = selectedVariant?.id === variant.id;
+                    const variantOut = variant.stock <= 0;
+                    return (
+                      <button
+                        key={variant.id}
+                        type="button"
+                        onClick={() => handleSelectVariant(variant)}
+                        title={`${variant.color_name}${variantOut ? " (Out of stock)" : ""}`}
+                        style={{
+                          width: 60,
+                          height: 60,
+                          borderRadius: 12,
+                          overflow: "hidden",
+                          border: isSelected ? `3px solid ${C.maroon}` : `2px solid ${C.goldPale}`,
+                          cursor: "pointer",
+                          padding: 0,
+                          position: "relative",
+                          opacity: variantOut ? 0.45 : 1,
+                          backgroundColor: C.whiteOff,
+                          flexShrink: 0,
+                        }}
+                      >
+                        {variant.image_url ? (
+                          <img
+                            src={variant.image_url}
+                            alt={variant.color_name}
+                            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                          />
+                        ) : (
+                          <div style={{
+                            width: "100%", height: "100%",
+                            display: "flex", alignItems: "center", justifyContent: "center",
+                            fontSize: 10, color: C.textLight, textAlign: "center", padding: 4,
+                          }}>
+                            {variant.color_name}
+                          </div>
+                        )}
+                        {variantOut && (
+                          <div style={{
+                            position: "absolute", inset: 0,
+                            backgroundColor: "rgba(255,255,255,0.6)",
+                          }} />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* ─── DESCRIPTION TOGGLE (FontAwesome Icon) ─── */}
             <div style={{
@@ -540,16 +623,6 @@ export default function ProductDetail() {
                   justifyContent: "space-between",
                   fontFamily: "inherit", transition: "all 0.4s ease",
                   borderRadius: descriptionExpanded ? "0" : "16px",
-                }}
-                onMouseEnter={(e) => {
-                  if (!descriptionExpanded) {
-                    e.currentTarget.style.backgroundColor = C.goldPale;
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (!descriptionExpanded) {
-                    e.currentTarget.style.backgroundColor = "transparent";
-                  }
                 }}
               >
                 <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
@@ -632,7 +705,7 @@ export default function ProductDetail() {
                     <div>
                       <div style={{ fontSize: 11, color: C.textLight, textTransform: "uppercase", letterSpacing: "0.05em" }}>Stock</div>
                       <div style={{ fontSize: 14, fontWeight: 500, color: isOutOfStock ? "#EF4444" : C.textMid }}>
-                        {isOutOfStock ? "Out of Stock" : `${product.stock} units`}
+                        {isOutOfStock ? "Out of Stock" : `${effectiveStock} units`}
                       </div>
                     </div>
                     <div>
@@ -668,12 +741,6 @@ export default function ProductDetail() {
                     fontFamily: "inherit", transition: "background 0.2s",
                     opacity: isOutOfStock ? 0.5 : 1,
                   }}
-                  onMouseEnter={(e) => {
-                    if (!isOutOfStock) e.target.style.backgroundColor = C.goldPale;
-                  }}
-                  onMouseLeave={(e) => {
-                    e.target.style.backgroundColor = "transparent";
-                  }}
                 >
                   −
                 </button>
@@ -685,7 +752,7 @@ export default function ProductDetail() {
                 </span>
                 <button
                   onClick={() => {
-                    if (product.stock > quantity) {
+                    if (effectiveStock > quantity) {
                       setQuantity(quantity + 1);
                     } else {
                       setToast("Maximum stock available");
@@ -703,18 +770,12 @@ export default function ProductDetail() {
                     fontFamily: "inherit", transition: "background 0.2s",
                     opacity: isOutOfStock ? 0.5 : 1,
                   }}
-                  onMouseEnter={(e) => {
-                    if (!isOutOfStock) e.target.style.backgroundColor = C.goldPale;
-                  }}
-                  onMouseLeave={(e) => {
-                    e.target.style.backgroundColor = "transparent";
-                  }}
                 >
                   +
                 </button>
               </div>
               <span style={{ fontSize: 13, color: C.textLight }}>
-                {isOutOfStock ? "No stock available" : `Max: ${product.stock}`}
+                {isOutOfStock ? "No stock available" : `Max: ${effectiveStock}`}
               </span>
             </div>
 
@@ -734,18 +795,6 @@ export default function ProductDetail() {
                   fontFamily: "inherit",
                   transition: "all 0.3s ease",
                   opacity: isOutOfStock ? 0.6 : 1,
-                }}
-                onMouseEnter={(e) => {
-                  if (!isOutOfStock) {
-                    e.target.style.backgroundColor = C.maroon;
-                    e.target.style.color = C.goldLight;
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (!isOutOfStock) {
-                    e.target.style.backgroundColor = "transparent";
-                    e.target.style.color = C.maroon;
-                  }
                 }}
               >
                 {isOutOfStock ? "Out of Stock" : "Add to Cart"}
@@ -767,22 +816,6 @@ export default function ProductDetail() {
                   opacity: isOutOfStock ? 0.6 : 1,
                   boxShadow: !isOutOfStock ? `0 4px 20px ${C.maroon}55` : "none",
                   animation: !isOutOfStock ? "blink 1.5s ease-in-out infinite" : "none",
-                }}
-                onMouseEnter={(e) => {
-                  if (!isOutOfStock) {
-                    e.target.style.animation = "none";
-                    e.target.style.backgroundColor = C.maroonDark;
-                    e.target.style.transform = "scale(1.05)";
-                    e.target.style.boxShadow = `0 8px 32px ${C.maroon}99`;
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (!isOutOfStock) {
-                    e.target.style.animation = "blink 1.5s ease-in-out infinite";
-                    e.target.style.backgroundColor = C.maroon;
-                    e.target.style.transform = "scale(1)";
-                    e.target.style.boxShadow = `0 4px 20px ${C.maroon}55`;
-                  }
                 }}
               >
                 {isOutOfStock ? "Out of Stock" : "Buy Now"}
@@ -810,7 +843,6 @@ export default function ProductDetail() {
         @keyframes fadeIn { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); max-height: 0; } to { opacity: 1; transform: translateY(0); max-height: 500px; } }
         
-        /* ─── BLINK ANIMATION FOR BUY NOW ─── */
         @keyframes blink {
           0%, 100% {
             box-shadow: 0 4px 20px rgba(111, 78, 55, 0.33), 0 0 0 0 rgba(111, 78, 55, 0.7);

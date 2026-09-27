@@ -1,6 +1,6 @@
 "use client";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faXmark, faPlus, faEdit } from "@fortawesome/free-solid-svg-icons";
+import { faXmark, faPlus, faEdit, faTrashCan, faPalette } from "@fortawesome/free-solid-svg-icons";
 import { C, ALL_CATEGORIES } from "@/lib/adminConstants";
 
 // mode: "add" | "edit"
@@ -14,6 +14,16 @@ export default function ProductFormModal({
   images,
   onSubmit,
   uploading,
+  existingImages = [],
+  onDeleteImage,
+  deletingImageId,
+  // ─── COLOR VARIANTS ───
+  variantRows = [],
+  onAddVariantRow,
+  onRemoveVariantRow,
+  onVariantRowChange,
+  onVariantImageSelect,
+  savingVariantId,
 }) {
   if (!show) return null;
 
@@ -41,7 +51,7 @@ export default function ProductFormModal({
           backgroundColor: C.white,
           borderRadius: "24px",
           padding: "40px",
-          maxWidth: "520px",
+          maxWidth: "560px",
           width: "100%",
           maxHeight: "90vh",
           overflowY: "auto",
@@ -283,7 +293,7 @@ export default function ProductFormModal({
 
             <div style={{ marginBottom: 16 }}>
               <label style={{ fontSize: 14, fontWeight: 500, color: C.textMid, display: "block", marginBottom: 4 }}>
-                Stock *
+                Stock * <span style={{ fontWeight: 400, color: C.textLight }}>(used only if no colors below)</span>
               </label>
               <input
                 type="number"
@@ -329,9 +339,250 @@ export default function ProductFormModal({
             />
           </div>
 
+          {/* ─── COLOR VARIANTS SECTION ─── */}
+          <div
+            style={{
+              marginBottom: 24,
+              padding: "16px 18px",
+              backgroundColor: C.whiteOff,
+              borderRadius: 12,
+              border: `1px solid ${C.goldLight}`,
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                marginBottom: 12,
+              }}
+            >
+              <div style={{ fontSize: 13, fontWeight: 600, color: C.maroonDark, display: "flex", alignItems: "center", gap: 6 }}>
+                <FontAwesomeIcon icon={faPalette} style={{ color: C.gold }} />
+                Colors (Optional)
+              </div>
+              <button
+                type="button"
+                onClick={onAddVariantRow}
+                style={{
+                  padding: "6px 14px",
+                  borderRadius: 20,
+                  border: `2px solid ${C.maroon}`,
+                  backgroundColor: "transparent",
+                  color: C.maroon,
+                  fontSize: 12,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  fontFamily: "inherit",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                }}
+              >
+                <FontAwesomeIcon icon={faPlus} style={{ fontSize: 10 }} /> Add Color
+              </button>
+            </div>
+
+            {variantRows.length === 0 ? (
+              <div style={{ fontSize: 12, color: C.textLight }}>
+                No colors added — this product will use the single Stock number above.
+              </div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                {variantRows.map((row, index) => {
+                  const isSavingThisOne = row.id && savingVariantId === row.id;
+                  const previewUrl = row.imageFile ? URL.createObjectURL(row.imageFile) : row.image_url;
+
+                  return (
+                    <div
+                      key={row.id ?? `new-${index}`}
+                      style={{
+                        display: "flex",
+                        gap: 10,
+                        alignItems: "flex-start",
+                        padding: "10px",
+                        backgroundColor: C.white,
+                        borderRadius: 10,
+                        border: `1px solid ${C.goldPale}`,
+                      }}
+                    >
+                      {/* Image thumbnail + upload */}
+                      <label
+                        style={{
+                          width: 56,
+                          height: 56,
+                          borderRadius: 8,
+                          border: `2px dashed ${C.goldPale}`,
+                          backgroundColor: C.whiteOff,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          overflow: "hidden",
+                          cursor: "pointer",
+                          flexShrink: 0,
+                          position: "relative",
+                        }}
+                        title="Click to upload/replace this color's photo"
+                      >
+                        {previewUrl ? (
+                          <img
+                            src={previewUrl}
+                            alt={row.color_name || "color"}
+                            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                          />
+                        ) : (
+                          <FontAwesomeIcon icon={faPlus} style={{ fontSize: 14, color: C.textLight }} />
+                        )}
+                        <input
+                          type="file"
+                          accept="image/*"
+                          style={{ display: "none" }}
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) onVariantImageSelect(index, file);
+                          }}
+                        />
+                      </label>
+
+                      <div style={{ flex: 1, display: "grid", gridTemplateColumns: "1fr 90px", gap: 8 }}>
+                        <input
+                          type="text"
+                          placeholder="Color name (e.g. Green)"
+                          value={row.color_name}
+                          onChange={(e) => onVariantRowChange(index, "color_name", e.target.value)}
+                          style={{
+                            padding: "8px 10px",
+                            borderRadius: 8,
+                            border: `2px solid ${C.goldPale}`,
+                            fontSize: 13,
+                            fontFamily: "inherit",
+                            outline: "none",
+                            backgroundColor: C.whiteOff,
+                          }}
+                          required
+                        />
+                        <input
+                          type="number"
+                          placeholder="Stock"
+                          min="0"
+                          value={row.stock}
+                          onChange={(e) => onVariantRowChange(index, "stock", e.target.value)}
+                          style={{
+                            padding: "8px 10px",
+                            borderRadius: 8,
+                            border: `2px solid ${C.goldPale}`,
+                            fontSize: 13,
+                            fontFamily: "inherit",
+                            outline: "none",
+                            backgroundColor: C.whiteOff,
+                          }}
+                          required
+                        />
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => onRemoveVariantRow(index, row.id)}
+                        disabled={isSavingThisOne}
+                        title="Remove this color"
+                        style={{
+                          width: 32,
+                          height: 32,
+                          borderRadius: 8,
+                          border: "none",
+                          backgroundColor: "#FEE2E2",
+                          color: "#DC2626",
+                          cursor: isSavingThisOne ? "not-allowed" : "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          flexShrink: 0,
+                        }}
+                      >
+                        <FontAwesomeIcon icon={faTrashCan} style={{ fontSize: 13 }} />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            <div style={{ fontSize: 11, color: C.textLight, marginTop: 10 }}>
+              {isEdit
+                ? "Photos upload immediately when selected. Name/stock changes and new colors save when you press Update Product below."
+                : "Add each color's name and stock now. Photos will upload right after you create the product."}
+            </div>
+          </div>
+
+          {/* ─── EXISTING GENERAL IMAGES (edit mode only) — click ✕ to delete ─── */}
+          {isEdit && existingImages.length > 0 && (
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ fontSize: 14, fontWeight: 500, color: C.textMid, display: "block", marginBottom: 8 }}>
+                General Product Images
+              </label>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
+                {existingImages.map((img) => {
+                  const isDeleting = deletingImageId === img.id;
+                  return (
+                    <div
+                      key={img.id}
+                      style={{
+                        position: "relative",
+                        width: "100%",
+                        paddingTop: "100%",
+                        borderRadius: 10,
+                        overflow: "hidden",
+                        border: `2px solid ${C.goldPale}`,
+                        opacity: isDeleting ? 0.5 : 1,
+                      }}
+                    >
+                      <img
+                        src={img.image_url}
+                        alt="Product"
+                        style={{
+                          position: "absolute",
+                          inset: 0,
+                          width: "100%",
+                          height: "100%",
+                          objectFit: "cover",
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => onDeleteImage && onDeleteImage(img.id)}
+                        disabled={isDeleting}
+                        title="Delete this image"
+                        style={{
+                          position: "absolute",
+                          top: 4,
+                          right: 4,
+                          width: 22,
+                          height: 22,
+                          borderRadius: "50%",
+                          border: "none",
+                          backgroundColor: "rgba(220,38,38,0.9)",
+                          color: "#fff",
+                          fontSize: 11,
+                          cursor: isDeleting ? "not-allowed" : "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                      >
+                        <FontAwesomeIcon icon={faTrashCan} />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+              <div style={{ fontSize: 11, color: C.textLight, marginTop: 6 }}>
+                These are shown only for products without colors selected.
+              </div>
+            </div>
+          )}
+
           <div style={{ marginBottom: 24 }}>
             <label style={{ fontSize: 14, fontWeight: 500, color: C.textMid, display: "block", marginBottom: 4 }}>
-              {isEdit ? "Add New Images (Optional)" : "Product Images"}
+              {isEdit ? "Add New General Images (Optional)" : "General Product Images"}
             </label>
             <input
               type="file"

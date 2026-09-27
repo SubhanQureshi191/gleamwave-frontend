@@ -10,7 +10,6 @@ import CustomOrderModal from "./components/CustomOrderModal";
 import FeedbackButton from "./components/FeedbackButton";
 import FeedbackDisplay from "./components/FeedbackDisplay";
 import ForgotPasswordModal from "./components/ForgotPasswordModal";
-import { API_URL } from "@/lib/config";
 
 // ── Font Awesome Icons ─────────────────────────────────────────
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -67,6 +66,8 @@ const C = {
   textMid: "#6B4F3A",
   textLight: "#A08070",
 };
+
+const API_URL = "http://localhost:5000/api";
 
 // ─── CATEGORY ICON MAP ──────────────────────────────────────────
 const CATEGORY_ICONS = {
@@ -1673,7 +1674,7 @@ export default function Home() {
                         : "0 2px 16px rgba(74,46,34,0.05)",
                   }}
                 >
-                  <div className="category-image-box" style={{ position: "relative", height: 220 }}>
+                  <div className="category-image-box" style={{ position: "relative", aspectRatio: "4 / 3" }}>
                     <img
                       className="category-image"
                       src={cat.image}
@@ -1856,7 +1857,7 @@ export default function Home() {
                     >
                       <div
                         style={{
-                          height: 220,
+                          aspectRatio: "4 / 3",
                           background: `linear-gradient(135deg, ${C.maroonPale}, ${C.goldPale})`,
                           display: "flex",
                           alignItems: "center",

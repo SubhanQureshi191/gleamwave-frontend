@@ -28,6 +28,13 @@ export default function AdminDashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [adminUser, setAdminUser] = useState(null);
 
+  // ─── Image deletion (general product images) ───
+  const [deletingImageId, setDeletingImageId] = useState(null);
+
+  // ─── Color variants ───
+  const [variantRows, setVariantRows] = useState([]);
+  const [savingVariantId, setSavingVariantId] = useState(null);
+
   const [feedbackStats, setFeedbackStats] = useState({
     total: 0,
     pending: 0,
@@ -199,6 +206,110 @@ export default function AdminDashboard() {
     }
   };
 
+  // ─── Delete a general product image ───
+  const handleDeleteImage = async (imageId) => {
+    if (!confirm("Delete this image permanently?")) return;
+    setDeletingImageId(imageId);
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch(`${API_URL}/admin/products/images/${imageId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to delete image");
+
+      showToast("Image deleted successfully!", "success");
+
+      setEditingProduct((prev) =>
+        prev ? { ...prev, images: prev.images.filter((img) => img.id !== imageId) } : prev
+      );
+
+      fetchProducts();
+    } catch (error) {
+      showToast(error.message, "error");
+    } finally {
+      setDeletingImageId(null);
+    }
+  };
+
+  // ═══════════════════════════════════════════════════════════════
+  // ─── COLOR VARIANTS ───
+  // ═══════════════════════════════════════════════════════════════
+
+  const handleAddVariantRow = () => {
+    setVariantRows((prev) => [
+      ...prev,
+      { id: null, color_name: "", stock: "", imageFile: null, image_url: null },
+    ]);
+  };
+
+  const handleVariantRowChange = (index, field, value) => {
+    setVariantRows((prev) =>
+      prev.map((r, i) => (i === index ? { ...r, [field]: value } : r))
+    );
+  };
+
+  const handleRemoveVariantRow = async (index, variantId) => {
+    if (variantId) {
+      if (!confirm("Delete this color permanently?")) return;
+      setSavingVariantId(variantId);
+      try {
+        const token = localStorage.getItem("token");
+        const res = await fetch(`${API_URL}/admin/products/variants/${variantId}`, {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Failed to delete color");
+        showToast("Color deleted successfully!", "success");
+        fetchProducts();
+      } catch (error) {
+        showToast(error.message, "error");
+        return;
+      } finally {
+        setSavingVariantId(null);
+      }
+    }
+    setVariantRows((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleVariantImageSelect = async (index, file) => {
+    const row = variantRows[index];
+
+    if (row.id) {
+      // Existing, already-saved color -> upload immediately
+      setSavingVariantId(row.id);
+      try {
+        const token = localStorage.getItem("token");
+        const formDataObj = new FormData();
+        formDataObj.append("image", file);
+        const res = await fetch(`${API_URL}/admin/products/variants/${row.id}/image`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+          body: formDataObj,
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Failed to upload color image");
+        setVariantRows((prev) =>
+          prev.map((r, i) => (i === index ? { ...r, image_url: data.image_url, imageFile: null } : r))
+        );
+        showToast("Color photo updated!", "success");
+        fetchProducts();
+      } catch (error) {
+        showToast(error.message, "error");
+      } finally {
+        setSavingVariantId(null);
+      }
+    } else {
+      // Brand-new, unsaved color -> hold the file; it uploads
+      // automatically right after Add/Update Product is submitted.
+      setVariantRows((prev) =>
+        prev.map((r, i) => (i === index ? { ...r, imageFile: file } : r))
+      );
+    }
+  };
+
   // ─── Handle Form Change ───
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -261,6 +372,17 @@ export default function AdminDashboard() {
     });
 
     setImages([]);
+
+    setVariantRows(
+      (product.variants || []).map((v) => ({
+        id: v.id,
+        color_name: v.color_name,
+        stock: v.stock?.toString() || "0",
+        imageFile: null,
+        image_url: v.image_url,
+      }))
+    );
+
     setShowEditModal(true);
   };
 
@@ -277,6 +399,7 @@ export default function AdminDashboard() {
       stock: "",
     });
     setImages([]);
+    setVariantRows([]);
   };
 
   // ─── Add Product ───
@@ -310,11 +433,33 @@ export default function AdminDashboard() {
           tag: formData.tag,
           description: formData.description,
           stock: parseInt(formData.stock),
+          variants: variantRows.map((r) => ({
+            color_name: r.color_name,
+            stock: r.stock ? parseInt(r.stock) : 0,
+          })),
         }),
       });
 
       const productData = await productRes.json();
       if (!productRes.ok) throw new Error(productData.error || "Failed to create product");
+
+      // ─── Upload pending color photos for the newly created variants ───
+      if (variantRows.length > 0) {
+        const returnedVariants = productData.variants || [];
+        for (let i = 0; i < variantRows.length; i++) {
+          const row = variantRows[i];
+          const matchedVariant = returnedVariants[i];
+          if (row.imageFile && matchedVariant) {
+            const variantFormData = new FormData();
+            variantFormData.append("image", row.imageFile);
+            await fetch(`${API_URL}/admin/products/variants/${matchedVariant.id}/image`, {
+              method: "POST",
+              headers: { Authorization: `Bearer ${token}` },
+              body: variantFormData,
+            });
+          }
+        }
+      }
 
       if (images.length > 0) {
         const formDataObj = new FormData();
@@ -353,6 +498,8 @@ export default function AdminDashboard() {
         );
       }
 
+      const existingVariantIdsBeforeSubmit = variantRows.filter((r) => r.id).map((r) => r.id);
+
       const productRes = await fetch(`${API_URL}/admin/products/${editingProduct.id}`, {
         method: "PUT",
         headers: {
@@ -369,11 +516,35 @@ export default function AdminDashboard() {
           tag: formData.tag,
           description: formData.description,
           stock: parseInt(formData.stock),
+          variants: variantRows.map((r) => ({
+            ...(r.id ? { id: r.id } : {}),
+            color_name: r.color_name,
+            stock: r.stock ? parseInt(r.stock) : 0,
+          })),
         }),
       });
 
       const productData = await productRes.json();
       if (!productRes.ok) throw new Error(productData.error || "Failed to update product");
+
+      // ─── Upload pending color photos for BRAND-NEW variants only ───
+      const newlyCreatedVariants = (productData.variants || []).filter(
+        (v) => !existingVariantIdsBeforeSubmit.includes(v.id)
+      );
+      const newRowsNeedingImage = variantRows.filter((r) => !r.id && r.imageFile);
+      for (let i = 0; i < newRowsNeedingImage.length; i++) {
+        const row = newRowsNeedingImage[i];
+        const matchedVariant = newlyCreatedVariants[i];
+        if (matchedVariant) {
+          const variantFormData = new FormData();
+          variantFormData.append("image", row.imageFile);
+          await fetch(`${API_URL}/admin/products/variants/${matchedVariant.id}/image`, {
+            method: "POST",
+            headers: { Authorization: `Bearer ${token}` },
+            body: variantFormData,
+          });
+        }
+      }
 
       if (images.length > 0) {
         const formDataObj = new FormData();
@@ -535,6 +706,12 @@ export default function AdminDashboard() {
         images={images}
         onSubmit={handleAddProduct}
         uploading={uploading}
+        variantRows={variantRows}
+        onAddVariantRow={handleAddVariantRow}
+        onRemoveVariantRow={handleRemoveVariantRow}
+        onVariantRowChange={handleVariantRowChange}
+        onVariantImageSelect={handleVariantImageSelect}
+        savingVariantId={savingVariantId}
       />
 
       {/* ─── EDIT PRODUCT MODAL ─── */}
@@ -549,6 +726,15 @@ export default function AdminDashboard() {
           images={images}
           onSubmit={handleUpdateProduct}
           uploading={uploading}
+          existingImages={editingProduct?.images || []}
+          onDeleteImage={handleDeleteImage}
+          deletingImageId={deletingImageId}
+          variantRows={variantRows}
+          onAddVariantRow={handleAddVariantRow}
+          onRemoveVariantRow={handleRemoveVariantRow}
+          onVariantRowChange={handleVariantRowChange}
+          onVariantImageSelect={handleVariantImageSelect}
+          savingVariantId={savingVariantId}
         />
       )}
 
