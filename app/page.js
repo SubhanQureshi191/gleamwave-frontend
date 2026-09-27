@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { API_URL } from "@/lib/config";
 
 // ── Components ──
 import Sidebar from "./components/Sidebar";
@@ -67,7 +68,7 @@ const C = {
   textLight: "#A08070",
 };
 
-const API_URL = "http://localhost:5000/api";
+
 
 // ─── CATEGORY ICON MAP ──────────────────────────────────────────
 const CATEGORY_ICONS = {
