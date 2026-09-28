@@ -12,6 +12,7 @@ import FeedbackButton from "./components/FeedbackButton";
 import FeedbackDisplay from "./components/FeedbackDisplay";
 import ForgotPasswordModal from "./components/ForgotPasswordModal";
 import CategoryCarousel from "./components/CategoryCarousel";
+import ProductCarousel from "./components/ProductCarousel";
 
 // ── Font Awesome Icons ─────────────────────────────────────────
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -1711,177 +1712,12 @@ export default function Home() {
             </h2>
           </div>
 
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-              gap: 24,
-            }}
-          >
-            {loadingFeatured
-              ? Array(6)
-                  .fill(0)
-                  .map((_, i) => (
-                    <div
-                      key={i}
-                      style={{
-                        backgroundColor: "#fff",
-                        borderRadius: 22,
-                        height: 380,
-                        border: `2px solid ${C.goldPale}`,
-                      }}
-                    />
-                  ))
-              : featuredProducts.map((p) => {
-                  const isOutOfStock = p.stock <= 0;
-                  return (
-                    <div
-                      key={p.id}
-                      onClick={() => !isOutOfStock && handleProductClick(p.id)}
-                      style={{
-                        backgroundColor: "#fff",
-                        borderRadius: 22,
-                        overflow: "hidden",
-                        border: `2px solid ${isOutOfStock ? "#EF4444" : C.goldPale}`,
-                        cursor: isOutOfStock ? "not-allowed" : "pointer",
-                        opacity: isOutOfStock ? 0.7 : 1,
-                        transition: "all 0.3s ease",
-                      }}
-                      onMouseEnter={(e) => {
-                        if (!isOutOfStock) {
-                          e.currentTarget.style.transform = "translateY(-6px)";
-                          e.currentTarget.style.boxShadow = `0 12px 40px ${C.maroon}33`;
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.transform = "translateY(0)";
-                        e.currentTarget.style.boxShadow = "none";
-                      }}
-                    >
-                      <div
-                        style={{
-                          aspectRatio: "4 / 3",
-                          background: `linear-gradient(135deg, ${C.maroonPale}, ${C.goldPale})`,
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          position: "relative",
-                          overflow: "hidden",
-                        }}
-                      >
-                        {p.images?.[0]?.image_url ? (
-                          <img
-                            src={p.images[0].image_url}
-                            alt={p.name}
-                            style={{
-                              width: "100%",
-                              height: "100%",
-                              objectFit: "cover",
-                            }}
-                          />
-                        ) : (
-                          <FontAwesomeIcon
-                            icon={faGem}
-                            style={{ fontSize: 48, color: C.maroon }}
-                          />
-                        )}
-                        {isOutOfStock && (
-                          <div
-                            style={{
-                              position: "absolute",
-                              inset: 0,
-                              backgroundColor: "rgba(0,0,0,0.5)",
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                            }}
-                          >
-                            <span
-                              style={{
-                                backgroundColor: "#EF4444",
-                                color: "white",
-                                padding: "6px 16px",
-                                borderRadius: 20,
-                                fontSize: 12,
-                                fontWeight: 700,
-                              }}
-                            >
-                              OUT OF STOCK
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                      <div style={{ padding: "20px 22px" }}>
-                        <div
-                          style={{
-                            fontSize: 12,
-                            color: C.textLight,
-                            textTransform: "uppercase",
-                            marginBottom: 4,
-                          }}
-                        >
-                          {p.category}
-                        </div>
-                        <div
-                          style={{
-                            fontSize: 17,
-                            fontWeight: 600,
-                            color: C.maroonDark,
-                            marginBottom: 10,
-                          }}
-                        >
-                          {p.name}
-                        </div>
-                        <PriceDisplay product={p} size="medium" />
-                        <button
-                          onClick={(e) => addCart(p.id, p.name, e)}
-                          disabled={isOutOfStock}
-                          style={{
-                            marginTop: 12,
-                            width: "100%",
-                            padding: "10px",
-                            borderRadius: 30,
-                            border: "none",
-                            backgroundColor: isOutOfStock ? "#ccc" : C.maroon,
-                            color: isOutOfStock ? "#999" : C.goldLight,
-                            fontSize: 12,
-                            cursor: isOutOfStock ? "not-allowed" : "pointer",
-                            fontFamily: "inherit",
-                            fontWeight: 600,
-                            transition:
-                              "opacity 0.2s ease, transform 0.2s ease",
-                            opacity: 1,
-                          }}
-                          onMouseEnter={(e) => {
-                            if (!isOutOfStock) {
-                              e.currentTarget.style.opacity = "0.8";
-                              e.currentTarget.style.transform = "scale(1.02)";
-                            }
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.opacity = "1";
-                            e.currentTarget.style.transform = "scale(1)";
-                          }}
-                          onMouseDown={(e) => {
-                            if (!isOutOfStock)
-                              e.currentTarget.style.opacity = "0.6";
-                          }}
-                          onMouseUp={(e) => {
-                            if (!isOutOfStock)
-                              e.currentTarget.style.opacity = "0.8";
-                          }}
-                        >
-                          <FontAwesomeIcon
-                            icon={faShoppingCart}
-                            style={{ marginRight: 6 }}
-                          />
-                          {isOutOfStock ? "Out of Stock" : "Add to Cart"}
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-          </div>
+          <ProductCarousel
+            products={featuredProducts}
+            loading={loadingFeatured}
+            onProductClick={handleProductClick}
+            onAddToCart={addCart}
+          />
 
           <div style={{ textAlign: "center", marginTop: 48 }}>
             <Link href="/products">
