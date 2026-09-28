@@ -359,7 +359,7 @@ export default function Checkout() {
     <div style={{
       backgroundColor: C.white, color: C.text,
       fontFamily: "'Georgia', 'Times New Roman', serif",
-      minHeight: "100vh", paddingTop: "80px",
+      minHeight: "100vh", paddingTop: "80px", overflowX: "clip",
     }}>
       {/* ── TOAST ── */}
       {toast && (
@@ -455,11 +455,11 @@ export default function Checkout() {
         </p>
 
         <div style={{
-          display: "grid", gridTemplateColumns: "1fr 380px", gap: 40,
+          display: "grid", gridTemplateColumns: "minmax(0, 1fr) 380px", gap: 40,
         }} className="checkout-grid">
           
           {/* ─── LEFT: FORM ─── */}
-          <div>
+          <div style={{ minWidth: 0 }}>
             <form onSubmit={handlePlaceOrder}>
               {/* Personal Information */}
               <div style={{
@@ -492,7 +492,7 @@ export default function Checkout() {
                   />
                 </div>
 
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+                <div className="checkout-two-col" style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)", gap: 16 }}>
                   <div style={{ marginBottom: 16 }}>
                     <label style={{ fontSize: 14, fontWeight: 500, color: C.textMid, display: "block", marginBottom: 4 }}>
                       Email *
@@ -569,7 +569,7 @@ export default function Checkout() {
                   />
                 </div>
 
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+                <div className="checkout-two-col" style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)", gap: 16 }}>
                   <div style={{ marginBottom: 16 }}>
                     <label style={{ fontSize: 14, fontWeight: 500, color: C.textMid, display: "block", marginBottom: 4 }}>
                       City *
@@ -884,7 +884,10 @@ export default function Checkout() {
           to { opacity: 1; transform: translateY(0); }
         }
         @media (max-width: 768px) {
-          .checkout-grid { grid-template-columns: 1fr !important; }
+          .checkout-grid { grid-template-columns: minmax(0, 1fr) !important; gap: 24px !important; }
+        }
+        @media (max-width: 600px) {
+          .checkout-two-col { grid-template-columns: minmax(0, 1fr) !important; gap: 0 !important; }
         }
       `}</style>
     </div>

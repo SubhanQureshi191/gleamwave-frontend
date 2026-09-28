@@ -326,6 +326,7 @@ export default function Cart() {
       fontFamily: "'Georgia', 'Times New Roman', serif",
       minHeight: "100vh",
       paddingTop: "80px",
+      overflowX: "clip",
     }}>
       {/* ── TOAST ── */}
       {toast && (
@@ -427,11 +428,11 @@ export default function Cart() {
           </div>
         ) : (
           <div style={{
-            display: "grid", gridTemplateColumns: "1fr 320px", gap: 40,
+            display: "grid", gridTemplateColumns: "minmax(0, 1fr) 320px", gap: 40,
           }} className="cart-grid">
             
             {/* ─── CART ITEMS LIST ─── */}
-            <div>
+            <div style={{ minWidth: 0 }}>
               {cartItems.map((item) => {
                 const isExpanded = expandedDescriptions[item.id];
                 const description = item.product?.description || "No description available for this product.";
@@ -442,8 +443,8 @@ export default function Cart() {
                 
                 return (
                   <div key={item.id} style={{ padding: "20px 0", borderBottom: `1px solid ${C.goldPale}` }}>
-                    <div style={{ display: "flex", gap: 20, alignItems: "center" }}>
-                      <div style={{
+                    <div className="cart-item-row" style={{ display: "flex", gap: 20, alignItems: "center" }}>
+                      <div className="cart-item-img" style={{
                         width: 100, height: 100, borderRadius: 12,
                         background: `linear-gradient(135deg, ${C.maroonPale}, ${C.goldPale})`,
                         display: "flex", alignItems: "center", justifyContent: "center",
@@ -460,7 +461,7 @@ export default function Cart() {
                         ) : null}
                       </div>
 
-                      <div style={{ flex: 1 }}>
+                      <div className="cart-item-info" style={{ flex: 1, minWidth: 0 }}>
                         <Link href={`/product/${item.product_id}`} style={{
                           fontSize: 16, fontWeight: 600,
                           color: C.maroonDark, textDecoration: "none",
@@ -517,7 +518,7 @@ export default function Cart() {
                         )}
                       </div>
 
-                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <div className="cart-item-qty" style={{ display: "flex", alignItems: "center", gap: 10 }}>
                         <button
                           onClick={() => updateQuantity(item.id, Math.max(1, item.quantity - 1))}
                           disabled={isOutOfStock}
@@ -561,7 +562,7 @@ export default function Cart() {
                         </button>
                       </div>
 
-                      <div style={{ textAlign: "right", minWidth: 100 }}>
+                      <div className="cart-item-price" style={{ textAlign: "right", minWidth: 100 }}>
                         <div style={{ fontSize: 18, fontWeight: 700, color: C.maroon }}>
                           Rs. {((item.product?.price || 0) * item.quantity).toLocaleString()}
                         </div>
@@ -686,7 +687,16 @@ export default function Cart() {
       <style>{`
         @keyframes fadeIn { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); max-height: 0; } to { opacity: 1; transform: translateY(0); max-height: 200px; } }
-        @media (max-width: 768px) { .cart-grid { grid-template-columns: 1fr !important; } }
+        @media (max-width: 768px) {
+          .cart-grid { grid-template-columns: minmax(0, 1fr) !important; gap: 24px !important; }
+        }
+        @media (max-width: 600px) {
+          .cart-item-row { flex-wrap: wrap !important; gap: 12px 14px !important; align-items: flex-start !important; }
+          .cart-item-img { width: 80px !important; height: 80px !important; }
+          .cart-item-info { flex: 1 1 calc(100% - 100px) !important; min-width: 0 !important; }
+          .cart-item-qty { order: 3; }
+          .cart-item-price { order: 4; margin-left: auto; min-width: 0 !important; }
+        }
       `}</style>
     </div>
   );
