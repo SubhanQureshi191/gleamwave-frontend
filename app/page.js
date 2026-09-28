@@ -11,6 +11,7 @@ import CustomOrderModal from "./components/CustomOrderModal";
 import FeedbackButton from "./components/FeedbackButton";
 import FeedbackDisplay from "./components/FeedbackDisplay";
 import ForgotPasswordModal from "./components/ForgotPasswordModal";
+import CategoryCarousel from "./components/CategoryCarousel";
 
 // ── Font Awesome Icons ─────────────────────────────────────────
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -78,6 +79,7 @@ const CATEGORY_ICONS = {
   "Resin Rings": faRing,
   "Resin Jhumkas": faGem,
   "Resin Trays": faPalette,
+  "Resin Bangals": faCircleCheck,
   "Resin Bracelets": faGem,
   "Resin Pendants": faHeart,
   "Resin Studs": faStar,
@@ -89,7 +91,7 @@ const CATEGORY_ICONS = {
   Baskets: faShoppingBag,
 };
 
-// ─── CATEGORY IMAGE MAP ──────────────────────────────────────────
+// ─── CATEGORY IMAGE MAP (fallback if the featured product has no photo yet) ──
 const CATEGORY_IMAGES = {
   "Silk Bouquet": "/images/categories/silk-bouquet.jpg",
   "Quran Rehal": "/images/categories/quran-rehal.jpg",
@@ -97,15 +99,26 @@ const CATEGORY_IMAGES = {
   "Resin Rings": "/images/categories/resin-rings.jpg",
   "Resin Jhumkas": "/images/categories/resin-jhumkas.jpg",
   "Resin Trays": "/images/categories/trays.jpg",
-  "Resin Bracelets": "/images/categories/jewelry.jpg",
-  "Resin Pendants": "/images/categories/jewelry.jpg",
+  "Resin Bangals": "/images/categories/bangals.jpeg",
+  "Resin Bracelets": "/images/categories/goldring.jpeg",
+  "Resin Pendants": "/images/categories/goldlocket.png",
   "Resin Studs": "/images/categories/studs.jpeg",
-  "Resin MDFs": "/images/categories/frames.jpg",
-  "Trending Gajra": "/images/categories/bridal.jpg",
-  "Customized Certificates": "/images/categories/stationery.jpg",
-  Booklet: "/images/categories/stationery.jpg",
-  "Resin Stationery": "/images/categories/stationery.jpg",
-  Baskets: "/images/categories/bridal.jpg",
+  "Resin MDFs": "/images/categories/trays.jpg",
+  "Trending Gajra": "/images/categories/silk-bouquet.jpg",
+  "Customized Certificates": "/images/categories/logo.jpg",
+  Booklet: "/images/categories/logo.jpg",
+  "Resin Stationery": "/images/categories/logo.jpg",
+  Baskets: "/images/categories/custom-basket.jpg",
+};
+
+// ─── For these categories, use ONE SPECIFIC PRODUCT'S own photo
+// on the homepage category card instead of the generic image above.
+// (Falls back to CATEGORY_IMAGES automatically if that product
+// isn't found, or has no photo uploaded yet.)
+const CATEGORY_FEATURED_PRODUCT = {
+  "Resin Bangals": "Crystallized",
+  "Resin Studs": "Nebula",
+  "Resin Trays": "Amaranth",
 };
 
 const DISPLAY_CATEGORIES = [
@@ -113,8 +126,8 @@ const DISPLAY_CATEGORIES = [
   "Resin Jhumkas",
   "Resin Trays",
   "Silk Bouquet",
-  "Quran Rehal",
-  "Customize Gleamwave Basket",
+  "Resin Bangals",
+  "Resin Studs",
 ];
 
 // ─── PRICE DISPLAY ──────────────────────────────────────────────
@@ -338,13 +351,28 @@ export default function Home() {
 
       const displayCategories = Array.from(allCategoryMap.entries())
         .filter(([name]) => DISPLAY_CATEGORIES.includes(name))
-        .map(([name, products]) => ({
-          id: name.toLowerCase().replace(/\s+/g, "-"),
-          label: name,
-          icon: CATEGORY_ICONS[name] || faBox,
-          image: CATEGORY_IMAGES[name] || "/images/categories/jewelry.jpg",
-          products: products,
-        }));
+        .map(([name, products]) => {
+          // ─── Use a specific product's own photo for this category, if configured ───
+          const featuredName = CATEGORY_FEATURED_PRODUCT[name];
+          let image = CATEGORY_IMAGES[name] || "/images/categories/jewelry.jpg";
+
+          if (featuredName) {
+            const featuredProduct = products.find(
+              (p) => p.name?.trim().toLowerCase() === featuredName.toLowerCase(),
+            );
+            if (featuredProduct?.images?.[0]?.image_url) {
+              image = featuredProduct.images[0].image_url;
+            }
+          }
+
+          return {
+            id: name.toLowerCase().replace(/\s+/g, "-"),
+            label: name,
+            icon: CATEGORY_ICONS[name] || faBox,
+            image,
+            products: products,
+          };
+        });
 
       displayCategories.sort((a, b) => a.label.localeCompare(b.label));
       setDynamicCategories(displayCategories);
@@ -1648,133 +1676,7 @@ export default function Home() {
               </h3>
             </div>
           ) : (
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-                gap: 24,
-              }}
-            >
-              {dynamicCategories.map((cat) => (
-                <div
-                  key={cat.id}
-                  className="category-card"
-                  onClick={() =>
-                    setActiveCategory(activeCategory === cat.id ? null : cat.id)
-                  }
-                  style={{
-                    backgroundColor: "#FFFFFF",
-                    border: `1px solid ${activeCategory === cat.id ? `${C.maroon}55` : "rgba(184,149,106,0.18)"}`,
-                    borderRadius: 20,
-                    cursor: "pointer",
-                    overflow: "hidden",
-                    transition: "border-color 0.4s ease, box-shadow 0.4s ease",
-                    boxShadow:
-                      activeCategory === cat.id
-                        ? `0 20px 48px ${C.maroon}22`
-                        : "0 2px 16px rgba(74,46,34,0.05)",
-                  }}
-                >
-                  <div className="category-image-box" style={{ position: "relative", aspectRatio: "4 / 3" }}>
-                    <img
-                      className="category-image"
-                      src={cat.image}
-                      alt={cat.label}
-                      style={{
-                        width: "100%",
-                        height: "100%",
-                        objectFit: "cover",
-                        display: "block",
-                      }}
-                      onError={(e) => {
-                        e.target.style.display = "none";
-                      }}
-                    />
-                    <div className="category-image-gradient" />
-                    <div
-                      style={{
-                        position: "absolute",
-                        bottom: 16,
-                        left: 16,
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 10,
-                      }}
-                    >
-                      <div
-                        style={{
-                          width: 36,
-                          height: 36,
-                          borderRadius: "50%",
-                          backgroundColor: "rgba(255,255,255,0.18)",
-                          backdropFilter: "blur(6px)",
-                          border: `1px solid ${C.goldLight}66`,
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          flexShrink: 0,
-                        }}
-                      >
-                        <FontAwesomeIcon
-                          icon={cat.icon}
-                          style={{ color: C.goldLight, fontSize: 14 }}
-                        />
-                      </div>
-                      <span
-                        style={{
-                          fontSize: 12,
-                          fontWeight: 600,
-                          color: "#FFFFFF",
-                          letterSpacing: "0.03em",
-                        }}
-                      >
-                        {cat.products.length} piece
-                        {cat.products.length !== 1 ? "s" : ""}
-                      </span>
-                    </div>
-                  </div>
-                  <div style={{ padding: "24px" }}>
-                    <div
-                      style={{
-                        fontWeight: 700,
-                        fontSize: 19,
-                        color: C.maroonDark,
-                        marginBottom: 8,
-                      }}
-                    >
-                      {cat.label}
-                    </div>
-                    <p style={{ fontSize: 14, color: C.textMid, margin: 0 }}>
-                      {cat.products.length} product(s) available
-                    </p>
-                    {activeCategory === cat.id && (
-                      <Link href={`/products?category=${cat.label}`}>
-                        <button
-                          style={{
-                            marginTop: 14,
-                            padding: "8px 18px",
-                            borderRadius: 30,
-                            border: "none",
-                            backgroundColor: C.maroon,
-                            color: C.goldLight,
-                            fontSize: 12,
-                            fontWeight: 600,
-                            cursor: "pointer",
-                            fontFamily: "inherit",
-                          }}
-                        >
-                          View All{" "}
-                          <FontAwesomeIcon
-                            icon={faArrowRight}
-                            style={{ marginLeft: 6 }}
-                          />
-                        </button>
-                      </Link>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
+            <CategoryCarousel categories={dynamicCategories} />
           )}
         </div>
       </section>
