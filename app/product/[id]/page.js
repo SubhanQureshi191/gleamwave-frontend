@@ -294,6 +294,7 @@ export default function ProductDetail() {
       backgroundColor: C.white, color: C.text,
       fontFamily: "'Georgia', 'Times New Roman', serif",
       minHeight: "100vh",
+      overflowX: "clip",
     }}>
       {/* ── TOAST ── */}
       {toast && (
@@ -408,11 +409,11 @@ export default function ProductDetail() {
         </div>
 
         <div style={{
-          display: "grid", gridTemplateColumns: "1fr 1fr", gap: 60,
+          display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)", gap: 60,
         }} className="product-grid">
           
           {/* ─── LEFT: IMAGES ─── */}
-          <div>
+          <div style={{ minWidth: 0 }}>
             <div style={{
               width: "100%", aspectRatio: "1 / 1", borderRadius: 20,
               overflow: "hidden", backgroundColor: C.whiteOff,
@@ -854,7 +855,7 @@ export default function ProductDetail() {
           }
         }
 
-        @media (max-width: 768px) { .product-grid { grid-template-columns: 1fr !important; } }
+        @media (max-width: 768px) { .product-grid { grid-template-columns: minmax(0, 1fr) !important; } }
       `}</style>
     </div>
   );
