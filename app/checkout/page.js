@@ -39,6 +39,11 @@ export default function Checkout() {
   const [placedOrderId, setPlacedOrderId] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
+  // ─── ADVANCE PAYMENT STATE ───
+  // Keyed by cart item id → screenshot URL (once uploaded) or null.
+  const [advanceScreenshots, setAdvanceScreenshots] = useState({});
+  const [uploadingAdvance, setUploadingAdvance] = useState({});
+
   // ─── FORM STATE ───
   const [formData, setFormData] = useState({
     shipping_name: "",
@@ -177,6 +182,49 @@ export default function Checkout() {
     }
   };
 
+  // ─── ADVANCE PAYMENT: which items need it, and are we ready to submit? ───
+  const advanceRequiredItems = cartItems.filter((item) => item.product?.requires_advance);
+  const totalAdvanceDue = advanceRequiredItems.reduce(
+    (sum, item) => sum + (item.product?.advance_amount || 0) * item.quantity,
+    0
+  );
+  const allAdvanceScreenshotsProvided = advanceRequiredItems.every(
+    (item) => !!advanceScreenshots[item.id]
+  );
+  const anyAdvanceUploadInProgress = Object.values(uploadingAdvance).some(Boolean);
+
+  // ─── UPLOAD ONE ADVANCE-PAYMENT SCREENSHOT ───
+  const handleAdvanceScreenshotUpload = async (item, file) => {
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      showToast("Please upload an image file (screenshot)", "error");
+      return;
+    }
+
+    setUploadingAdvance((prev) => ({ ...prev, [item.id]: true }));
+
+    try {
+      const form = new FormData();
+      form.append("screenshot", file);
+      form.append("product_id", item.product_id);
+
+      const res = await fetch(`${API_URL}/orders/advance-screenshot`, {
+        method: "POST",
+        body: form,
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to upload screenshot");
+
+      setAdvanceScreenshots((prev) => ({ ...prev, [item.id]: data.url }));
+      showToast("Screenshot uploaded", "success");
+    } catch (error) {
+      showToast(error.message || "Failed to upload screenshot", "error");
+    } finally {
+      setUploadingAdvance((prev) => ({ ...prev, [item.id]: false }));
+    }
+  };
+
   // ─── PLACE ORDER ───
   const handlePlaceOrder = async (e) => {
     e.preventDefault();
@@ -194,6 +242,11 @@ export default function Checkout() {
 
     if (cartItems.length === 0) {
       showToast("Your cart is empty", "error");
+      return;
+    }
+
+    if (!allAdvanceScreenshotsProvided) {
+      showToast("Please upload the advance payment screenshot for every required item", "error");
       return;
     }
 
@@ -225,7 +278,10 @@ export default function Checkout() {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify(orderData),
+          body: JSON.stringify({
+            ...orderData,
+            advance_screenshots: advanceScreenshots,
+          }),
         });
       } else {
         // ─── GUEST USER ───
@@ -236,6 +292,7 @@ export default function Checkout() {
             product_id: item.product_id,
             variant_id: item.variant_id || null,
             quantity: item.quantity,
+            advance_screenshot_url: advanceScreenshots[item.id] || null,
           })),
         };
         
@@ -658,6 +715,96 @@ export default function Checkout() {
                 )}
               </div>
 
+              {/* ─── ADVANCE PAYMENT REQUIRED ─── */}
+              {advanceRequiredItems.length > 0 && (
+                <div style={{
+                  backgroundColor: "#FFFBEB", borderRadius: 16,
+                  padding: "24px", marginBottom: 24,
+                  border: `2px solid #F5C453`,
+                }}>
+                  <h3 style={{ fontSize: 18, fontWeight: 700, color: C.maroonDark, marginBottom: 6 }}>
+                    Advance Payment Required
+                  </h3>
+                  <p style={{ fontSize: 13, color: C.textMid, marginBottom: 8, lineHeight: 1.6 }}>
+                    The item(s) below are handmade to order and require an advance payment before we can start. Please send the amount shown via EasyPaisa and attach a screenshot for each item.
+                  </p>
+                  <div style={{
+                    padding: "10px 14px", backgroundColor: "#FEF3C7", borderRadius: 8,
+                    fontSize: 13, color: "#92400E", marginBottom: 16, lineHeight: 1.6,
+                  }}>
+                    <span style={{ fontWeight: 600 }}>Account Title:</span> Ariba Atiq
+                    <br />
+                    <span style={{ fontWeight: 600 }}>Account Number:</span> 03192206562
+                    <br />
+                    <span style={{ fontWeight: 600 }}>Total Advance Due:</span> Rs. {totalAdvanceDue.toLocaleString()}
+                  </div>
+
+                  <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                    {advanceRequiredItems.map((item) => {
+                      const screenshotUrl = advanceScreenshots[item.id];
+                      const isUploading = !!uploadingAdvance[item.id];
+                      const lineAdvance = (item.product?.advance_amount || 0) * item.quantity;
+
+                      return (
+                        <div
+                          key={item.id}
+                          style={{
+                            padding: "14px 16px",
+                            backgroundColor: C.white,
+                            borderRadius: 12,
+                            border: `2px solid ${screenshotUrl ? C.success : C.goldPale}`,
+                          }}
+                        >
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8, marginBottom: 10 }}>
+                            <div>
+                              <div style={{ fontSize: 14, fontWeight: 600, color: C.maroonDark }}>
+                                {item.product?.name}
+                                {item.color_name && (
+                                  <span style={{ fontWeight: 400, color: C.textLight }}> ({item.color_name})</span>
+                                )}
+                              </div>
+                              <div style={{ fontSize: 12, color: C.textLight }}>
+                                Advance required: Rs. {lineAdvance.toLocaleString()} (Qty: {item.quantity})
+                              </div>
+                            </div>
+                            {screenshotUrl && (
+                              <span style={{ fontSize: 12, fontWeight: 600, color: C.success }}>
+                                ✓ Screenshot attached
+                              </span>
+                            )}
+                          </div>
+
+                          <label
+                            style={{
+                              display: "inline-flex", alignItems: "center", gap: 8,
+                              padding: "8px 16px", borderRadius: 30,
+                              border: `2px solid ${C.maroon}`,
+                              backgroundColor: screenshotUrl ? C.white : C.maroon,
+                              color: screenshotUrl ? C.maroon : C.goldLight,
+                              fontSize: 12, fontWeight: 600, cursor: "pointer",
+                              opacity: isUploading ? 0.6 : 1,
+                            }}
+                          >
+                            {isUploading
+                              ? "Uploading..."
+                              : screenshotUrl
+                              ? "Replace Screenshot"
+                              : "Upload Screenshot *"}
+                            <input
+                              type="file"
+                              accept="image/*"
+                              disabled={isUploading}
+                              onChange={(e) => handleAdvanceScreenshotUpload(item, e.target.files?.[0])}
+                              style={{ display: "none" }}
+                            />
+                          </label>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               {/* Order Instructions */}
               <div style={{
                 backgroundColor: C.whiteOff, borderRadius: 16,
@@ -759,17 +906,21 @@ export default function Checkout() {
 
               <button
                 type="submit"
-                disabled={submitting}
+                disabled={submitting || anyAdvanceUploadInProgress || !allAdvanceScreenshotsProvided}
                 style={{
                   width: "100%", padding: "16px",
                   borderRadius: 14, border: "none",
-                  backgroundColor: submitting ? C.textLight : C.maroon,
+                  backgroundColor: (submitting || anyAdvanceUploadInProgress || !allAdvanceScreenshotsProvided) ? C.textLight : C.maroon,
                   color: C.goldLight, fontSize: 16, fontWeight: 600,
-                  cursor: submitting ? "not-allowed" : "pointer",
-                  fontFamily: "inherit", opacity: submitting ? 0.7 : 1,
+                  cursor: (submitting || anyAdvanceUploadInProgress || !allAdvanceScreenshotsProvided) ? "not-allowed" : "pointer",
+                  fontFamily: "inherit", opacity: (submitting || anyAdvanceUploadInProgress || !allAdvanceScreenshotsProvided) ? 0.7 : 1,
                 }}
               >
-                {submitting ? "Placing Order..." : "Place Order"}
+                {submitting
+                  ? "Placing Order..."
+                  : !allAdvanceScreenshotsProvided
+                  ? "Upload Advance Payment Screenshot(s) to Continue"
+                  : "Place Order"}
               </button>
 
               <p style={{
@@ -819,6 +970,11 @@ export default function Checkout() {
                       {item.color_name && <span style={{ color: C.maroonDark, fontWeight: 600 }}>{item.color_name} · </span>}
                       Qty: {item.quantity}
                     </div>
+                    {item.product?.requires_advance && (
+                      <div style={{ fontSize: 11, color: "#92400E", fontWeight: 600, marginTop: 2 }}>
+                        Advance required
+                      </div>
+                    )}
                   </div>
                   <div style={{ fontSize: 14, fontWeight: 600, color: C.maroon }}>
                     Rs. {((item.product?.price || 0) * item.quantity).toLocaleString()}
@@ -844,6 +1000,17 @@ export default function Checkout() {
                   Rs. {DELIVERY_CHARGES.toLocaleString()}
                 </span>
               </div>
+              {totalAdvanceDue > 0 && (
+                <div style={{
+                  display: "flex", justifyContent: "space-between",
+                  padding: "8px 0", fontSize: 14, color: "#92400E",
+                }}>
+                  <span>Advance Due Now (EasyPaisa)</span>
+                  <span style={{ fontWeight: 600 }}>
+                    Rs. {totalAdvanceDue.toLocaleString()}
+                  </span>
+                </div>
+              )}
               <div style={{
                 display: "flex", justifyContent: "space-between",
                 padding: "16px 0 8px", fontSize: 22, fontWeight: 700,
