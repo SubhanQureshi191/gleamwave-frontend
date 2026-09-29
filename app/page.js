@@ -2183,7 +2183,6 @@ export default function Home() {
                 }}
               >
                 {[
-                  { label: "About Us", href: "/about" },
                   { label: "Contact Us", href: "/contact" },
                   { label: "My Account", href: "/profile" },
                   { label: "My Orders", href: "/profile" },
