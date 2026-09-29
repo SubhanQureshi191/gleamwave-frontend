@@ -339,6 +339,62 @@ export default function ProductFormModal({
             />
           </div>
 
+          {/* ─── ADVANCE PAYMENT ─── */}
+          <div
+            style={{
+              marginBottom: 16,
+              padding: "14px 16px",
+              backgroundColor: C.whiteOff,
+              borderRadius: 12,
+              border: `1px solid ${C.goldLight}`,
+            }}
+          >
+            <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}>
+              <input
+                type="checkbox"
+                name="requires_advance"
+                checked={formData.requires_advance || false}
+                onChange={handleChange}
+                style={{ width: 18, height: 18, accentColor: C.maroon, cursor: "pointer" }}
+              />
+              <span style={{ fontSize: 14, fontWeight: 600, color: C.maroonDark }}>
+                Requires Advance Payment
+              </span>
+            </label>
+            <div style={{ fontSize: 12, color: C.textLight, marginTop: 4, marginLeft: 28 }}>
+              Customer must pay this amount via EasyPaisa (and attach a screenshot) before this product can be ordered.
+            </div>
+
+            {formData.requires_advance && (
+              <div style={{ marginTop: 12, marginLeft: 28 }}>
+                <label style={{ fontSize: 13, fontWeight: 500, color: C.textMid, display: "block", marginBottom: 4 }}>
+                  Advance Amount (Rs.) *
+                </label>
+                <input
+                  type="number"
+                  name="advance_amount"
+                  value={formData.advance_amount}
+                  onChange={handleChange}
+                  min="0"
+                  step="1"
+                  placeholder="e.g. 2000"
+                  style={{
+                    width: "100%",
+                    maxWidth: 200,
+                    padding: "10px 14px",
+                    borderRadius: 10,
+                    border: `2px solid ${C.goldPale}`,
+                    fontSize: 14,
+                    fontFamily: "inherit",
+                    outline: "none",
+                    backgroundColor: C.white,
+                  }}
+                  required={formData.requires_advance}
+                />
+              </div>
+            )}
+          </div>
+
           {/* ─── COLOR VARIANTS SECTION ─── */}
           <div
             style={{

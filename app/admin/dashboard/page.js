@@ -59,6 +59,8 @@ export default function AdminDashboard() {
     tag: "New",
     description: "",
     stock: "",
+    requires_advance: false,
+    advance_amount: "",
   });
   const [images, setImages] = useState([]);
   const [uploading, setUploading] = useState(false);
@@ -312,7 +314,12 @@ export default function AdminDashboard() {
 
   // ─── Handle Form Change ───
   const handleChange = (e) => {
-    const { name, value } = e.target;
+    const { name, value, type, checked } = e.target;
+
+    if (type === "checkbox") {
+      setFormData((prev) => ({ ...prev, [name]: checked }));
+      return;
+    }
 
     if (name === "discount_percent") {
       let discount = parseFloat(value) || 0;
@@ -369,6 +376,8 @@ export default function AdminDashboard() {
       tag: product.tag || "New",
       description: product.description || "",
       stock: product.stock?.toString() || "",
+      requires_advance: product.requires_advance || false,
+      advance_amount: product.advance_amount?.toString() || "",
     });
 
     setImages([]);
@@ -397,6 +406,8 @@ export default function AdminDashboard() {
       tag: "New",
       description: "",
       stock: "",
+      requires_advance: false,
+      advance_amount: "",
     });
     setImages([]);
     setVariantRows([]);
@@ -433,6 +444,10 @@ export default function AdminDashboard() {
           tag: formData.tag,
           description: formData.description,
           stock: parseInt(formData.stock),
+          requires_advance: formData.requires_advance || false,
+          advance_amount: formData.requires_advance && formData.advance_amount
+            ? parseFloat(formData.advance_amount)
+            : null,
           variants: variantRows.map((r) => ({
             color_name: r.color_name,
             stock: r.stock ? parseInt(r.stock) : 0,
@@ -516,6 +531,10 @@ export default function AdminDashboard() {
           tag: formData.tag,
           description: formData.description,
           stock: parseInt(formData.stock),
+          requires_advance: formData.requires_advance || false,
+          advance_amount: formData.requires_advance && formData.advance_amount
+            ? parseFloat(formData.advance_amount)
+            : null,
           variants: variantRows.map((r) => ({
             ...(r.id ? { id: r.id } : {}),
             color_name: r.color_name,
@@ -656,6 +675,7 @@ export default function AdminDashboard() {
         user={adminUser}
         onLogoutClick={handleLogout}
         showBrandHeader={false}
+        showMainLinks={false}
         showUserSection={false}
       />
 
