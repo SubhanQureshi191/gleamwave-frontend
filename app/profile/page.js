@@ -44,6 +44,15 @@ const generateInvoiceHTML = (order) => {
 
   const deliveryCharges = order.delivery_charges || 300;
 
+  const totalAdvancePaid = (order.items || []).reduce(
+    (sum, item) =>
+      item.advance_required && item.advance_amount
+        ? sum + item.advance_amount * (item.quantity || 1)
+        : sum,
+    0
+  );
+  const balanceDue = totalAmount - totalAdvancePaid;
+
   const formatPakistanDateTime = (dateValue) => {
     if (!dateValue) {
       return { date: "N/A", time: "" };
@@ -217,7 +226,14 @@ const generateInvoiceHTML = (order) => {
           <tbody>
             ${(order.items || []).map((item) => `
               <tr>
-                <td><div class="product-name">${escapeHtml(item.product_name)}</div></td>
+                <td>
+                  <div class="product-name">${escapeHtml(item.product_name)}</div>
+                  ${item.advance_required && item.advance_amount ? `
+                    <div style="font-size:10px;color:#B8860B;margin-top:2px;">
+                      Advance paid: Rs. ${(item.advance_amount * (item.quantity || 1)).toLocaleString()}
+                    </div>
+                  ` : ""}
+                </td>
                 <td style="text-align:center;">${item.quantity}</td>
                 <td style="text-align:right;">Rs. ${item.price?.toLocaleString() || 0}</td>
                 <td style="text-align:right;font-weight:600;">Rs. ${((item.price || 0) * (item.quantity || 1)).toLocaleString()}</td>
@@ -231,6 +247,10 @@ const generateInvoiceHTML = (order) => {
             <div class="totals-row"><span>Subtotal</span><span>Rs. ${subtotal.toLocaleString()}</span></div>
             <div class="totals-row"><span>Delivery</span><span>Rs. ${deliveryCharges.toLocaleString()}</span></div>
             <div class="totals-row total"><span>Total</span><span>Rs. ${totalAmount.toLocaleString()}</span></div>
+            ${totalAdvancePaid > 0 ? `
+              <div class="totals-row" style="color:#B8860B;"><span>Advance Paid</span><span>- Rs. ${totalAdvancePaid.toLocaleString()}</span></div>
+              <div class="totals-row" style="font-weight:700;color:#4A2E22;border-top:1px solid #e8d9c0;padding-top:6px;margin-top:2px;"><span>Balance Due</span><span>Rs. ${balanceDue.toLocaleString()}</span></div>
+            ` : ""}
           </div>
         </div>
         
