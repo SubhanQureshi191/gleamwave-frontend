@@ -20,6 +20,8 @@ import {
   faLocationDot,
   faBagShopping,
   faEdit,
+  faHourglassHalf,
+  faImage,
 } from "@fortawesome/free-solid-svg-icons";
 import { C } from "@/lib/adminConstants";
 import { downloadInvoice } from "@/lib/adminHelpers";
@@ -27,6 +29,8 @@ import { downloadInvoice } from "@/lib/adminHelpers";
 // ─── Get Status Color ───
 const getStatusColor = (status) => {
   switch (status) {
+    case "pending":
+      return "#D97706";
     case "confirmed":
       return C.confirmed;
     case "shipped":
@@ -43,6 +47,8 @@ const getStatusColor = (status) => {
 // ─── Get Status Icon ───
 const getStatusIcon = (status) => {
   switch (status) {
+    case "pending":
+      return faHourglassHalf;
     case "confirmed":
       return faCheckCircle;
     case "shipped":
@@ -247,6 +253,25 @@ export default function OrdersTab({ orders, products, showToast, fetchOrders, up
 
                 {isExpanded && (
                   <div style={{ marginTop: 16, paddingTop: 16, borderTop: `1px solid ${C.goldPale}` }}>
+                    {order.status === "pending" && (
+                      <div
+                        style={{
+                          marginBottom: 16,
+                          padding: "14px 18px",
+                          backgroundColor: "#FFFBEB",
+                          border: "2px solid #F5C453",
+                          borderRadius: 12,
+                          fontSize: 13,
+                          color: "#92400E",
+                          lineHeight: 1.6,
+                        }}
+                      >
+                        <strong>Awaiting Approval:</strong> this order includes an advance-payment
+                        item. Review the payment screenshot(s) below, then set the status to{" "}
+                        <strong>Confirmed</strong> to approve it and send the customer their
+                        confirmation email.
+                      </div>
+                    )}
                     <div
                       style={{
                         display: "grid",
@@ -381,11 +406,61 @@ export default function OrdersTab({ orders, products, showToast, fetchOrders, up
                                   )}
                                 </div>
                                 <div style={{ flex: 1 }}>
-                                  <div style={{ fontSize: 14, fontWeight: 600, color: C.maroonDark }}>{item.product_name}</div>
+                                  <div style={{ fontSize: 14, fontWeight: 600, color: C.maroonDark }}>
+                                    {item.product_name}
+                                    {item.color_name && (
+                                      <span style={{
+                                        marginLeft: 8, fontSize: 11, fontWeight: 600,
+                                        color: C.maroon, backgroundColor: C.goldPale,
+                                        padding: "2px 8px", borderRadius: 10,
+                                      }}>
+                                        {item.color_name}
+                                      </span>
+                                    )}
+                                  </div>
                                   <div style={{ fontSize: 12, color: C.textLight }}>
                                     Qty: {item.quantity} × Rs. {item.price?.toLocaleString() || 0}
                                     {costPrice > 0 && <span style={{ marginLeft: 8 }}>• Cost: Rs. {costPrice.toLocaleString()}</span>}
                                   </div>
+                                  {item.advance_required && (
+                                    <div style={{ marginTop: 6 }}>
+                                      <div style={{ fontSize: 11, fontWeight: 600, color: "#92400E", marginBottom: 4 }}>
+                                        Advance {item.advance_amount ? `(Rs. ${item.advance_amount.toLocaleString()})` : ""}:
+                                      </div>
+                                      {(item.advance_screenshot_urls || []).length > 0 ? (
+                                        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                                          {item.advance_screenshot_urls.map((url, sIdx) => (
+                                            <a
+                                              key={url + sIdx}
+                                              href={url}
+                                              target="_blank"
+                                              rel="noopener noreferrer"
+                                              onClick={(e) => e.stopPropagation()}
+                                            >
+                                              <img
+                                                src={url}
+                                                alt={`Advance payment screenshot ${sIdx + 1}`}
+                                                style={{
+                                                  width: 48, height: 48, objectFit: "cover",
+                                                  borderRadius: 8, border: "2px solid #F5C453",
+                                                  display: "block",
+                                                }}
+                                              />
+                                            </a>
+                                          ))}
+                                        </div>
+                                      ) : (
+                                        <span style={{
+                                          display: "inline-flex", alignItems: "center", gap: 6,
+                                          fontSize: 12, fontWeight: 600, color: C.lossRed,
+                                          backgroundColor: C.lossRed + "1A", padding: "3px 10px",
+                                          borderRadius: 10,
+                                        }}>
+                                          <FontAwesomeIcon icon={faImage} /> No screenshot attached
+                                        </span>
+                                      )}
+                                    </div>
+                                  )}
                                 </div>
                                 <div style={{ textAlign: "right" }}>
                                   <div style={{ fontSize: 15, fontWeight: 700, color: C.maroon }}>
@@ -437,6 +512,9 @@ export default function OrdersTab({ orders, products, showToast, fetchOrders, up
                           }}
                           onClick={(e) => e.stopPropagation()}
                         >
+                          {order.status === "pending" && (
+                            <option value="pending">Pending Approval</option>
+                          )}
                           <option value="confirmed">Confirmed</option>
                           <option value="shipped">Shipped</option>
                           <option value="delivered">Delivered</option>

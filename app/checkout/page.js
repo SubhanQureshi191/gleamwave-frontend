@@ -37,6 +37,7 @@ export default function Checkout() {
   const [toast, setToast] = useState(null);
   const [orderPlaced, setOrderPlaced] = useState(false);
   const [placedOrderId, setPlacedOrderId] = useState(null);
+  const [orderPendingApproval, setOrderPendingApproval] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // ─── ADVANCE PAYMENT STATE ───
@@ -189,40 +190,58 @@ export default function Checkout() {
     0
   );
   const allAdvanceScreenshotsProvided = advanceRequiredItems.every(
-    (item) => !!advanceScreenshots[item.id]
+    (item) => (advanceScreenshots[item.id] || []).length > 0
   );
   const anyAdvanceUploadInProgress = Object.values(uploadingAdvance).some(Boolean);
 
-  // ─── UPLOAD ONE ADVANCE-PAYMENT SCREENSHOT ───
-  const handleAdvanceScreenshotUpload = async (item, file) => {
-    if (!file) return;
+  // ─── UPLOAD ONE OR MORE ADVANCE-PAYMENT SCREENSHOTS (appends to the list) ───
+  const handleAdvanceScreenshotUpload = async (item, fileList) => {
+    const files = Array.from(fileList || []);
+    if (files.length === 0) return;
 
-    if (!file.type.startsWith("image/")) {
-      showToast("Please upload an image file (screenshot)", "error");
+    const invalidFile = files.find((f) => !f.type.startsWith("image/"));
+    if (invalidFile) {
+      showToast("Please upload image files only (screenshots)", "error");
       return;
     }
 
     setUploadingAdvance((prev) => ({ ...prev, [item.id]: true }));
 
     try {
-      const form = new FormData();
-      form.append("screenshot", file);
-      form.append("product_id", item.product_id);
+      for (const file of files) {
+        const form = new FormData();
+        form.append("screenshot", file);
+        form.append("product_id", item.product_id);
 
-      const res = await fetch(`${API_URL}/orders/advance-screenshot`, {
-        method: "POST",
-        body: form,
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to upload screenshot");
+        const res = await fetch(`${API_URL}/orders/advance-screenshot`, {
+          method: "POST",
+          body: form,
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Failed to upload screenshot");
 
-      setAdvanceScreenshots((prev) => ({ ...prev, [item.id]: data.url }));
-      showToast("Screenshot uploaded", "success");
+        setAdvanceScreenshots((prev) => ({
+          ...prev,
+          [item.id]: [...(prev[item.id] || []), data.url],
+        }));
+      }
+      showToast(
+        files.length > 1 ? `${files.length} screenshots uploaded` : "Screenshot uploaded",
+        "success"
+      );
     } catch (error) {
       showToast(error.message || "Failed to upload screenshot", "error");
     } finally {
       setUploadingAdvance((prev) => ({ ...prev, [item.id]: false }));
     }
+  };
+
+  // ─── REMOVE ONE UPLOADED SCREENSHOT FROM THE LIST ───
+  const handleRemoveAdvanceScreenshot = (item, urlToRemove) => {
+    setAdvanceScreenshots((prev) => ({
+      ...prev,
+      [item.id]: (prev[item.id] || []).filter((url) => url !== urlToRemove),
+    }));
   };
 
   // ─── PLACE ORDER ───
@@ -292,7 +311,7 @@ export default function Checkout() {
             product_id: item.product_id,
             variant_id: item.variant_id || null,
             quantity: item.quantity,
-            advance_screenshot_url: advanceScreenshots[item.id] || null,
+            advance_screenshot_urls: advanceScreenshots[item.id] || [],
           })),
         };
         
@@ -310,10 +329,17 @@ export default function Checkout() {
       }
 
       const orderId = data.id || data.order?.id;
+      const pendingApproval = !!data.needs_admin_approval;
       setPlacedOrderId(orderId);
+      setOrderPendingApproval(pendingApproval);
       setOrderPlaced(true);
-      
-      showToast("Order placed successfully! Confirmation email sent.", "success");
+
+      showToast(
+        pendingApproval
+          ? "Order received! We're verifying your advance payment — you'll get a confirmation email once approved."
+          : "Order placed successfully! Confirmation email sent.",
+        "success"
+      );
       
       // ─── CLEAR CART ───
       if (user) {
@@ -453,13 +479,15 @@ export default function Checkout() {
               ✓
             </div>
             <h2 style={{ fontSize: 26, color: C.maroonDark, marginBottom: 8 }}>
-              Order Placed!
+              {orderPendingApproval ? "Order Received!" : "Order Placed!"}
             </h2>
             <p style={{ color: C.textMid, marginBottom: 6 }}>
               Order ID: <strong>#{placedOrderId}</strong>
             </p>
             <p style={{ color: C.textLight, fontSize: 14, marginBottom: 20 }}>
-              A confirmation email has been sent to <strong>{formData.email}</strong>
+              {orderPendingApproval
+                ? <>We're verifying your advance payment screenshot. You'll receive a confirmation email at <strong>{formData.email}</strong> once it's approved.</>
+                : <>A confirmation email has been sent to <strong>{formData.email}</strong></>}
             </p>
             <p style={{ color: C.textLight, fontSize: 13 }}>
               Redirecting... Please wait
@@ -741,7 +769,7 @@ export default function Checkout() {
 
                   <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                     {advanceRequiredItems.map((item) => {
-                      const screenshotUrl = advanceScreenshots[item.id];
+                      const screenshotUrls = advanceScreenshots[item.id] || [];
                       const isUploading = !!uploadingAdvance[item.id];
                       const lineAdvance = (item.product?.advance_amount || 0) * item.quantity;
 
@@ -752,7 +780,7 @@ export default function Checkout() {
                             padding: "14px 16px",
                             backgroundColor: C.white,
                             borderRadius: 12,
-                            border: `2px solid ${screenshotUrl ? C.success : C.goldPale}`,
+                            border: `2px solid ${screenshotUrls.length > 0 ? C.success : C.goldPale}`,
                           }}
                         >
                           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8, marginBottom: 10 }}>
@@ -767,34 +795,79 @@ export default function Checkout() {
                                 Advance required: Rs. {lineAdvance.toLocaleString()} (Qty: {item.quantity})
                               </div>
                             </div>
-                            {screenshotUrl && (
+                            {screenshotUrls.length > 0 && (
                               <span style={{ fontSize: 12, fontWeight: 600, color: C.success }}>
-                                ✓ Screenshot attached
+                                ✓ {screenshotUrls.length} screenshot{screenshotUrls.length > 1 ? "s" : ""} attached
                               </span>
                             )}
                           </div>
+
+                          {/* ─── THUMBNAILS: view + delete ─── */}
+                          {screenshotUrls.length > 0 && (
+                            <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 12 }}>
+                              {screenshotUrls.map((url, idx) => (
+                                <div
+                                  key={url + idx}
+                                  style={{ position: "relative", width: 64, height: 64, flexShrink: 0 }}
+                                >
+                                  <a href={url} target="_blank" rel="noopener noreferrer">
+                                    <img
+                                      src={url}
+                                      alt={`Advance payment screenshot ${idx + 1}`}
+                                      style={{
+                                        width: "100%", height: "100%", objectFit: "cover",
+                                        borderRadius: 8, border: `2px solid ${C.goldPale}`,
+                                        display: "block",
+                                      }}
+                                    />
+                                  </a>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRemoveAdvanceScreenshot(item, url)}
+                                    aria-label="Remove screenshot"
+                                    style={{
+                                      position: "absolute", top: -8, right: -8,
+                                      width: 22, height: 22, borderRadius: "50%",
+                                      border: "none", backgroundColor: C.error,
+                                      color: "#fff", fontSize: 13, fontWeight: 700,
+                                      cursor: "pointer", display: "flex",
+                                      alignItems: "center", justifyContent: "center",
+                                      lineHeight: 1, padding: 0,
+                                      boxShadow: "0 2px 6px rgba(0,0,0,0.25)",
+                                    }}
+                                  >
+                                    ×
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
 
                           <label
                             style={{
                               display: "inline-flex", alignItems: "center", gap: 8,
                               padding: "8px 16px", borderRadius: 30,
                               border: `2px solid ${C.maroon}`,
-                              backgroundColor: screenshotUrl ? C.white : C.maroon,
-                              color: screenshotUrl ? C.maroon : C.goldLight,
+                              backgroundColor: screenshotUrls.length > 0 ? C.white : C.maroon,
+                              color: screenshotUrls.length > 0 ? C.maroon : C.goldLight,
                               fontSize: 12, fontWeight: 600, cursor: "pointer",
                               opacity: isUploading ? 0.6 : 1,
                             }}
                           >
                             {isUploading
                               ? "Uploading..."
-                              : screenshotUrl
-                              ? "Replace Screenshot"
-                              : "Upload Screenshot *"}
+                              : screenshotUrls.length > 0
+                              ? "Add More Screenshots"
+                              : "Upload Screenshot(s) *"}
                             <input
                               type="file"
                               accept="image/*"
+                              multiple
                               disabled={isUploading}
-                              onChange={(e) => handleAdvanceScreenshotUpload(item, e.target.files?.[0])}
+                              onChange={(e) => {
+                                handleAdvanceScreenshotUpload(item, e.target.files);
+                                e.target.value = "";
+                              }}
                               style={{ display: "none" }}
                             />
                           </label>
