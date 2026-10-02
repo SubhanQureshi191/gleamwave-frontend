@@ -18,15 +18,15 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "Gleamwave — Handcrafted Resin Art & Preserve Memory Jewelry",
+  title: "Gleamwave Handcrafted Resin Art & Jewelry",
   description:
-    "Premium handmade resin art, preserve memory jewelry, bridal keepsakes, and custom orders — crafted with love in Pakistan.",
+    "Premium handmade resin art, preserve memory jewelry, bridal keepsakes, and custom orders crafted with love in Pakistan.",
   metadataBase: new URL("https://gleamwaveresin.com"),
   verification: {
     google: "MsfLa8LpWm77hW98-uik7gc8UntguCL3twVHR0TEXDk",
   },
   openGraph: {
-    title: "Gleamwave — Handcrafted Resin Art",
+    title: "Gleamwave Handcrafted Resin Art",
     description:
       "Premium handmade resin art, preserve memory jewelry, and bridal keepsakes.",
     url: "https://gleamwaveresin.com",
