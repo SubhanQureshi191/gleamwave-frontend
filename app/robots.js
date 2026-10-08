@@ -6,6 +6,6 @@ export default function robots() {
       allow: "/",
       disallow: ["/admin", "/admin/dashboard", "/cart", "/checkout"],
     },
-    sitemap: "https://gleamwaveresin.com/sitemap.xml",
+    sitemap: "https://www.gleamwaveresin.com/sitemap.xml",
   };
 }

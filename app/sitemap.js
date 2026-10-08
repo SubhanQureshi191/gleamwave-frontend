@@ -1,6 +1,6 @@
 // app/sitemap.js
 export default function sitemap() {
-  const baseUrl = "https://gleamwaveresin.com";
+  const baseUrl = "https://www.gleamwaveresin.com";
 
   return [
     {
