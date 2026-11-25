@@ -86,6 +86,8 @@ const CATEGORY_ICONS = {
   "Resin Studs": faStar,
   "Resin MDFs": faBox,
   "Trending Gajra": faHeart,
+  "Gajjras": faHeart,           
+  "Event & Tags": faTags,
   "Customized Certificates": faCircleCheck,
   Booklet: faBook,
   "Resin Stationery": faWandSparkles,
